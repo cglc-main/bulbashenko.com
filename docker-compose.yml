@@ -1,0 +1,33 @@
+# Local development and the CI media test: Postgres for the app, and a Nextcloud with the Team folder the site
+# reads its gallery and files from (set up by scripts/nextcloud-dev-setup.sh). Production runs both in the cluster
+# (cglc-main/infra).
+services:
+  postgres:
+    image: postgres:18.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bulbashenko
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+  # Same major as production. SQLite is enough for a dev copy; the site only talks WebDAV and the preview API.
+  nextcloud:
+    image: nextcloud:35-apache
+    restart: unless-stopped
+    environment:
+      SQLITE_DATABASE: nextcloud
+      NEXTCLOUD_ADMIN_USER: admin
+      NEXTCLOUD_ADMIN_PASSWORD: admin-dev-password
+      NEXTCLOUD_TRUSTED_DOMAINS: localhost nextcloud
+    ports:
+      - "8081:80"
+    volumes:
+      - nextcloud:/var/www/html
+
+volumes:
+  pgdata:
+  nextcloud:

@@ -1,0 +1,15 @@
+.git
+.github
+.next
+node_modules
+scripts
+!scripts/migrate.mjs
+e2e
+docs
+deploy
+.env*
+*.tsbuildinfo
+next-env.d.ts
+ASCII Background.html
+docker-compose.yml
+Dockerfile

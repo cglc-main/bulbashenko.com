@@ -1,0 +1,76 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  flex-direction: column;
+  gap: 8px;
+  background: #000;
+}
+
+.box {
+  border: 1px solid var(--g3);
+  padding: 32px 40px;
+  background: var(--bg2);
+  min-width: 320px;
+}
+
+.title {
+  font-family: var(--fw);
+  font-size: 28px;
+  color: var(--g1);
+  text-shadow: var(--gw);
+  letter-spacing: 4px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.error {
+  color: #d06060;
+  font-size: 12px;
+  margin-top: 8px;
+  text-align: center;
+  font-family: var(--fw);
+  letter-spacing: 1px;
+  min-height: 20px;
+}
+
+.hint {
+  font-family: var(--fw);
+  font-size: 12px;
+  color: var(--g3);
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+  max-width: 340px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.siteLink {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  font-size: 16px;
+  letter-spacing: 2px;
+  font-family: var(--fw);
+  background: none;
+  border: 1px solid var(--g4);
+  color: var(--g2);
+  cursor: pointer;
+  transition: all .1s;
+}
+
+.siteLink:hover { border-color: var(--g3); color: var(--g1); }
+
+.signIn {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+}

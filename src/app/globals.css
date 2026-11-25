@@ -1,0 +1,32 @@
+@import '../styles/tokens.css';
+@import '../styles/crt.css';
+
+/* ── RESET ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #020202;
+  color: var(--g2);
+  font-family: var(--fm);
+  font-size: 16px;
+  padding: 16px;
+}
+
+body:has(.admin-body) {
+  padding: 0;
+  background: #0a0a0a;
+}
+
+@media (max-width: 660px) {
+  body { padding: 8px 6px; }
+  html, body { overflow: auto; }
+}

@@ -1,0 +1,101 @@
+# Checks for every pull request and every push to main. `check`, `build` and `media` are the required checks of the
+# main ruleset, so nothing reaches main (and with it production) without them. A push to main then builds the
+# images (image.yml runs after this workflow).
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Scratch database for Prisma to replay the migrations into (shadow database).
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          # Created next to the default `postgres` database.
+          POSTGRES_DB: shadow
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 2s --health-timeout 2s --health-retries 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: lint
+        run: npm run lint
+      - name: typecheck
+        run: npx tsc --noEmit
+      - name: migrations match the schema
+        # A schema change without its migration file (prisma migrate dev) would deploy nothing.
+        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow
+      - name: audit (production dependencies, high and critical)
+        run: npm audit --omit=dev --audit-level=high
+
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }}
+
+  # The media path end to end: the app against a real Nextcloud (docker-compose.yml) with sample files.
+  media:
+    name: media
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bulbashenko
+      NEXTCLOUD_URL: http://localhost:8081
+      NEXTCLOUD_USER: site
+      NEXTCLOUD_PASSWORD: site-dev-password
+      NEXTCLOUD_ROOT: Site
+      JWT_SECRET: ci-only-secret-ci-only-secret-ci-only
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: docker compose up -d --quiet-pull
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Nextcloud with the Team folder and sample files
+        run: sh scripts/nextcloud-dev-setup.sh --fixtures
+      - run: npx prisma migrate deploy
+      - name: start the app
+        run: |
+          npx next start -p 3000 > /tmp/next.log 2>&1 &
+          curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null http://localhost:3000/api/health
+      - run: sh scripts/media-smoke.sh http://localhost:3000
+      - if: failure()
+        run: |
+          cat /tmp/next.log
+          docker compose logs --tail 100 nextcloud

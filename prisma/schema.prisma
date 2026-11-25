@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Singleton — always id=1
+model Profile {
+  id           Int        @id @default(1)
+  name         String     @default("Aleksandr Albekov")
+  birthday     String?
+  location     String?
+  titleEn      String?
+  titleRu      String?
+  titleSk      String?
+  bioEn        String?
+  bioRu        String?
+  bioSk        String?
+  photoMedia   MediaItem? @relation(fields: [photoMediaId], references: [id], onDelete: SetNull)
+  photoMediaId String?
+  email        String?
+  github       String?
+  telegram     String?
+  linkedin     String?
+  skills       Json       @default("[]")
+  updatedAt    DateTime   @updatedAt
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  titleRu   String?
+  titleSk   String?
+  content   String
+  contentRu String?
+  contentSk String?
+  date      String
+  tags      String[]
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  nameRu    String?
+  nameSk    String?
+  desc      String?
+  descRu    String?
+  descSk    String?
+  stack     String[]
+  github    String?
+  url       String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+enum MediaSection {
+  GALLERY
+  FILES
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  FILE
+}
+
+// One file in the Nextcloud Team folder the site reads (src/lib/media-sync.ts keeps these rows in step with it).
+// The file itself stays in Nextcloud; this row holds what only the site knows: caption, order, hidden.
+model MediaItem {
+  id         String       @id @default(cuid())
+  fileId     Int          @unique // Nextcloud's file id: survives renames and moves
+  section    MediaSection
+  kind       MediaKind
+  path       String // inside the Team folder, e.g. "Files/Tools/x.iso"
+  name       String
+  mime       String
+  size       BigInt
+  etag       String
+  modifiedAt DateTime
+  hasPreview Boolean      @default(false)
+  caption    String?
+  order      Int          @default(0)
+  hidden     Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  profiles   Profile[]
+
+  @@index([section, order])
+}
+
+// type: 'experience' | 'education' | 'certification'
+model CVEntry {
+  id          String   @id @default(cuid())
+  type        String
+  role        String?
+  company     String?
+  degree      String?
+  institution String?
+  name        String?
+  issuer      String?
+  start       String?
+  end         String?
+  desc        String?
+  date        String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+// One signed-in admin device. The cookie carries only this row's id, so deleting the row signs the device out.
+model Session {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  ip        String   @default("")
+  userAgent String   @default("")
+  // From the SSO's ID token: who signed in, and the provider session it belongs to. A back-channel logout from the
+  // provider names one of them (src/app/api/auth/oidc/backchannel-logout).
+  subject   String   @default("")
+  oidcSid   String?
+  // Sent back as id_token_hint when signing out, so the provider ends its session too (RP-initiated logout).
+  idToken   String   @default("")
+
+  @@index([oidcSid])
+  @@index([subject])
+}

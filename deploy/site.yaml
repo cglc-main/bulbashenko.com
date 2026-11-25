@@ -1,0 +1,113 @@
+# The site: Next.js standalone server, two replicas on different nodes (tier 1: keeps running when a node is lost).
+# The init container applies new Prisma migrations before the new version starts; the old pods keep serving until
+# the new ones are ready, so migrations must stay backward compatible (cglc-main/docs contracts/site.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: site
+spec:
+  replicas: 2
+  # A new pod counts as available only after staying ready longer than the liveness window below (20 s × 6, plus
+  # the start); one that dies sooner never replaces an old pod, the rollout misses its deadline, and infra reverts
+  # the version (cglc-main/docs delivery.md). Each pod adds 2.5 minutes to
+  # a deploy.
+  minReadySeconds: 150
+  progressDeadlineSeconds: 300
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: site }
+  template:
+    metadata:
+      labels: { app: site }
+    spec:
+      priorityClassName: tier-1
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector: { matchLabels: { app: site } }
+          matchLabelKeys: [pod-template-hash]
+      securityContext:
+        runAsNonRoot: true
+        # The image's user is `node` (uid 1000); the kubelet needs the numeric id.
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      initContainers:
+        - name: migrate
+          image: ghcr.io/cglc-main/bulbashenko.com-migrate
+          env:
+            - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: site, key: DATABASE_URL } } }
+          resources:
+            requests: { cpu: 170m, memory: 144Mi }
+            limits: { memory: 384Mi }
+          volumeMounts:
+            - { name: internal-ca, mountPath: /etc/internal-ca, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+      containers:
+        - name: site
+          image: ghcr.io/cglc-main/bulbashenko.com
+          env:
+            - { name: SITE_URL, value: "https://bulbashenko.com" }
+            - { name: OIDC_ISSUER, value: "https://auth.bulbashenko.com" }
+            - { name: OIDC_CLIENT_ID, value: bulbashenko-site }
+            - { name: NEXTCLOUD_URL, value: "http://nextcloud.nextcloud.svc.cluster.local:8080" }
+            - { name: NEXTCLOUD_PUBLIC_URL, value: "https://cloud.bulbashenko.com" }
+            - { name: NEXTCLOUD_USER, value: site }
+            - { name: NEXTCLOUD_ROOT, value: Site }
+            - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: site, key: DATABASE_URL } } }
+            - { name: JWT_SECRET, valueFrom: { secretKeyRef: { name: site, key: JWT_SECRET } } }
+            - { name: OIDC_CLIENT_SECRET, valueFrom: { secretKeyRef: { name: site, key: OIDC_CLIENT_SECRET } } }
+            - { name: NEXTCLOUD_PASSWORD, valueFrom: { secretKeyRef: { name: site, key: NEXTCLOUD_PASSWORD } } }
+          ports:
+            - { name: http, containerPort: 3000 }
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+          # Liveness does not look at the database (/api/live): a database outage makes the pods unready, it does not
+          # restart them.
+          livenessProbe:
+            httpGet: { path: /api/live, port: http }
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            requests: { cpu: 80m, memory: 208Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: internal-ca, mountPath: /etc/internal-ca, readOnly: true }
+            - { name: cache, mountPath: /app/.next/cache }
+            - { name: tmp, mountPath: /tmp }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+      volumes:
+        # CA for verify-full to Postgres (sslrootcert in DATABASE_URL).
+        - name: internal-ca
+          configMap: { name: internal-ca }
+        - { name: cache, emptyDir: {} }
+        - { name: tmp, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: site
+spec:
+  selector: { app: site }
+  ports:
+    - { name: http, port: 3000, targetPort: http }
+---
+# Node drains (kured reboots, k3s upgrades) take one replica at a time.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: site
+spec:
+  minAvailable: 1
+  # A pod that runs but never gets ready does not hold up a node drain.
+  unhealthyPodEvictionPolicy: AlwaysAllow
+  selector: { matchLabels: { app: site } }

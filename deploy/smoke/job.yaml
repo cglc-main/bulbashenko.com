@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: site-smoke
+  annotations:
+    # A Job's pod template cannot change; Flux recreates it when the image tag (the released version) changes.
+    kustomize.toolkit.fluxcd.io/force: enabled
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        # pwuser in the Playwright image.
+        runAsUser: 1001
+        runAsGroup: 1001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: smoke
+          image: ghcr.io/cglc-main/bulbashenko.com-e2e
+          resources:
+            # Chromium uses ~720 MiB (590 MiB measured locally), more than the old 768 MiB limit leaves room for.
+            # The request stays below that on purpose: the cluster has no 736 MiB to reserve, and a smoke pod
+            # that cannot be scheduled fails the deploy and reverts a good release (cglc-main/docs, architecture.md: memory).
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - { name: tmp, emptyDir: {} }
+        # Chromium needs more shared memory than the default 64 MB.
+        - { name: shm, emptyDir: { medium: Memory, sizeLimit: 256Mi } }

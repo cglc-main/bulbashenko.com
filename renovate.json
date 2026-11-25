@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>cglc-main/.github//renovate/default"],
+  "description": "Org policy: cglc-main/.github renovate/default.json. `check`, `build` and `media` gate every merge.",
+  "packageRules": [
+    {
+      "description": "Next.js and React together.",
+      "matchPackageNames": ["next", "eslint-config-next", "react", "react-dom", "@types/react", "@types/react-dom"],
+      "groupName": "Next.js"
+    },
+    {
+      "description": "Prisma's CLI, client and adapter must match.",
+      "matchPackageNames": ["prisma", "@prisma/client", "@prisma/adapter-pg"],
+      "groupName": "Prisma"
+    },
+    {
+      "description": "The smoke suite's Playwright and its image move together.",
+      "matchFileNames": ["e2e/**"],
+      "groupName": "e2e tooling"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+# Kubernetes base of bulbashenko.com, deployed by cglc-main/infra into the namespace `bulbashenko-com`: a Flux
+# GitRepository on a release tag of this repo, with the images of the same release. Contract with the deploying
+# side: cglc-main/docs contracts/site.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: bulbashenko-com
+    includeSelectors: false
+    includeTemplates: true
+resources:
+  - site.yaml
+  - routes.yaml
+  - network-policy.yaml
+images:
+  - name: ghcr.io/cglc-main/bulbashenko.com
+    newTag: main
+  - name: ghcr.io/cglc-main/bulbashenko.com-migrate
+    newTag: main

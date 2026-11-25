@@ -1,0 +1,15 @@
+# The read-only smoke suite (e2e/) against production, run by Flux after every deploy of the base: the deploying side
+# applies this directory once the site is ready and waits for the Job. A failure rolls the deploy back. The image
+# tag is set to the released version; the suite checks that /api/health reports its commit.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: bulbashenko-com
+    includeSelectors: false
+    includeTemplates: true
+resources:
+  - job.yaml
+images:
+  - name: ghcr.io/cglc-main/bulbashenko.com-e2e
+    newTag: main

@@ -1,0 +1,13 @@
+# The PR title becomes the squashed commit that semantic-release reads (cglc-main/.github, pr-title.yml).
+name: pr-title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  title:
+    uses: cglc-main/.github/.github/workflows/pr-title.yml@main
