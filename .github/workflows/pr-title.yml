@@ -10,4 +10,4 @@ permissions:
 
 jobs:
   title:
-    uses: cglc-main/.github/.github/workflows/pr-title.yml@main
+    uses: cglc-main/.github/.github/workflows/pr-title.yml@313676b08df84a35e86d9600c97e128897853a0e # main
