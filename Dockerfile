@@ -1,12 +1,12 @@
 # Next.js standalone image (target runtime) and the schema migration image (target migrate), built by GitHub Actions
 # (.github/workflows/image.yml) and deployed from deploy/ by cglc-main/infra.
-FROM node:22-slim AS deps
+FROM node:22-slim@sha256:be979e5523c76fa4d5ca4ebd3099078f220aa47ec39c48ad5b5df9314debd6eb AS deps
 WORKDIR /app
 COPY package.json package-lock.json prisma.config.ts ./
 COPY prisma ./prisma
 RUN npm ci
 
-FROM node:22-slim AS build
+FROM node:22-slim@sha256:be979e5523c76fa4d5ca4ebd3099078f220aa47ec39c48ad5b5df9314debd6eb AS build
 WORKDIR /app
 ARG NEXT_PUBLIC_SITE_URL=https://bulbashenko.com
 ARG NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
@@ -17,7 +17,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:22-slim AS runtime
+FROM node:22-slim@sha256:be979e5523c76fa4d5ca4ebd3099078f220aa47ec39c48ad5b5df9314debd6eb AS runtime
 LABEL org.opencontainers.image.title="bulbashenko.com" \
       org.opencontainers.image.description="Personal website and blog of Aleksandr Albekov (Next.js standalone server)" \
       org.opencontainers.image.url="https://bulbashenko.com" \
@@ -40,7 +40,7 @@ CMD ["node", "server.js"]
 
 # Applies prisma/migrations before the app starts (init container `migrate`, scripts/migrate.mjs). Production
 # dependencies only: the Prisma CLI and its schema engine.
-FROM node:22-slim AS migrate
+FROM node:22-slim@sha256:be979e5523c76fa4d5ca4ebd3099078f220aa47ec39c48ad5b5df9314debd6eb AS migrate
 # The schema engine talks TLS to Postgres (verify-full) through the system OpenSSL, which the slim image lacks.
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

@@ -3,7 +3,7 @@
 # (cglc-main/infra).
 services:
   postgres:
-    image: postgres:18.4-alpine
+    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -16,7 +16,7 @@ services:
 
   # Same major as production. SQLite is enough for a dev copy; the site only talks WebDAV and the preview API.
   nextcloud:
-    image: nextcloud:35-apache
+    image: nextcloud:35-apache@sha256:04f8aab430ca662b0e59fcbf14ebe877fae8490947b93c91cfa9a9d0db16d4ed
     restart: unless-stopped
     environment:
       SQLITE_DATABASE: nextcloud
