@@ -36,6 +36,9 @@ jobs:
       REGISTRY: ghcr.io/${{ github.repository_owner }}
       VERSION: ${{ needs.release.outputs.version }}
       SHA: ${{ github.event.workflow_run.head_sha }}
+      # Trivy (the official image; scans the image the build loaded into the runner's Docker) keeps its vulnerability
+      # database here, so the job downloads it once.
+      TRIVY_CACHE_DIR: /github/home/.cache/trivy
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -66,12 +69,9 @@ jobs:
           cache-from: type=gha,scope=bulbashenko.com
           cache-to: type=gha,mode=max,scope=bulbashenko.com
       - name: bulbashenko.com (scan)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: docker://ghcr.io/aquasecurity/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
         with:
-          image-ref: ${{ env.REGISTRY }}/bulbashenko.com:${{ env.VERSION }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+          args: image --severity CRITICAL --ignore-unfixed --exit-code 1 ${{ env.REGISTRY }}/bulbashenko.com:${{ env.VERSION }}
       - name: bulbashenko.com (push)
         run: docker push "${REGISTRY}/bulbashenko.com:${VERSION}"
       - name: bulbashenko.com-migrate (build)
@@ -88,12 +88,9 @@ jobs:
           cache-from: type=gha,scope=bulbashenko.com-migrate
           cache-to: type=gha,mode=max,scope=bulbashenko.com-migrate
       - name: bulbashenko.com-migrate (scan)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: docker://ghcr.io/aquasecurity/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
         with:
-          image-ref: ${{ env.REGISTRY }}/bulbashenko.com-migrate:${{ env.VERSION }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+          args: image --severity CRITICAL --ignore-unfixed --exit-code 1 ${{ env.REGISTRY }}/bulbashenko.com-migrate:${{ env.VERSION }}
       - name: bulbashenko.com-migrate (push)
         run: docker push "${REGISTRY}/bulbashenko.com-migrate:${VERSION}"
       - name: bulbashenko.com-e2e (build)
@@ -110,12 +107,9 @@ jobs:
           cache-from: type=gha,scope=bulbashenko.com-e2e
           cache-to: type=gha,mode=max,scope=bulbashenko.com-e2e
       - name: bulbashenko.com-e2e (scan)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: docker://ghcr.io/aquasecurity/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
         with:
-          image-ref: ${{ env.REGISTRY }}/bulbashenko.com-e2e:${{ env.VERSION }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+          args: image --severity CRITICAL --ignore-unfixed --exit-code 1 ${{ env.REGISTRY }}/bulbashenko.com-e2e:${{ env.VERSION }}
       - name: bulbashenko.com-e2e (push)
         run: docker push "${REGISTRY}/bulbashenko.com-e2e:${VERSION}"
   deliver:
